@@ -1,0 +1,166 @@
+#!/usr/bin/python
+
+import os
+import sys
+import json
+import subprocess
+
+def usage(msg=None):
+    if msg:
+        print >>sys.stderr, msg + "\n"
+
+    s = os.path.basename(__file__)
+    print """\
+usage: %s [-u USER[:PASS]] COMMAND [args...]
+
+COMMANDs:
+
+  (*)   list-mine
+        list-user        USER
+        list-org         ORG
+  (*)   create-mine      REPO
+  (*)   create-org       ORG   REPO
+  (*)   delete           OWNER REPO
+  (*)   rename           OWNER REPO NEWNAME
+  (*)   set-description  OWNER REPO DESCRIPTION
+  (*)   protect-branch   OWNER REPO BRANCH
+  (*)   unprotect-branch OWNER REPO BRANCH
+        
+(*) USER login required
+""" % s
+    sys.exit()
+
+apiurl = 'https://api.github.com'
+user = []
+
+def spopen(cmd):
+    return subprocess.Popen(cmd, stdout=subprocess.PIPE).communicate()[0]
+
+GET    = 'GET'
+POST   = 'POST'
+PATCH  = 'PATCH'
+DELETE = 'DELETE'
+
+def curler(method, path, user=[], data=[]):
+    if user:
+        user = ['-u', user]
+    if data:
+        data = ['-d', json.dumps(data)]
+    cmd = ['curl', '-s'] + user + ['-X', method, apiurl + path] + data
+
+    return json.loads(spopen(cmd))
+
+"""
+github API notes:
+
+: list-mine      GET /user/repos
+: list-user      GET /users/:username/repos
+: list-org       GET /orgs/:org/repos
+: create-mine    POST /user/repos      {"name": "Repo-Name"}
+: create-org     POST /orgs/:org/repos {"name": "Repo-Name"}
+: delete         DELETE /repos/:owner/:repo
+: rename (edit)  PATCH /repos/:owner/:repo  {"name": "New-Repo-Name"}
+: protect-branch PATCH /repos/:owner/:repo/branches/:branch {"enabled": "true"}
+"""
+
+def print_names(j):
+    m = max( len(x['name']) for x in j )
+    for x in j:
+        print "%-*s  %s" % (m, x['name'], x['html_url'])
+
+def pmsg(j):
+    if 'message' in j:
+        print j['message']
+
+def list_mine():
+    j = curler(GET, '/user/repos', user)
+    pmsg(j)
+    for x in j:
+        #print x['full_name']
+        print x['html_url']
+
+def list_user(luser):
+    j = curler(GET, '/users/%s/repos' % luser, user)
+    pmsg(j)
+    for x in j:
+        #print x['name']
+        print x['html_url']
+
+def list_org(org):
+    j = curler(GET, '/orgs/%s/repos' % org, user)
+    pmsg(j)
+    for x in j:
+        #print x['name']
+        print x['html_url']
+
+def create_mine(repo):
+    j = curler(POST, '/user/repos', user, {"name": repo})
+    pmsg(j)
+
+def create_org(org, repo):
+    j = curler(POST, '/orgs/%s/repos' % org, user, {"name": repo})
+    pmsg(j)
+
+def delete_repo(owner, repo):
+    j = curler(DELETE, '/repos/%s/%s' % (owner,repo), user)
+    pmsg(j)
+
+def rename_repo(owner, repo, newname):
+    j = curler(PATCH, '/repos/%s/%s' % (owner,repo), user, {"name": newname})
+    pmsg(j)
+
+def set_description(owner, repo, desc):
+    j = curler(PATCH, '/repos/%s/%s' % (owner,repo), user,
+               {"name": repo, "description": desc})
+    pmsg(j)
+
+def protect_branch(owner, repo, branch):
+    j = curler(PATCH, '/repos/%s/%s/branches/%s' % (owner,repo,branch),
+               user, {"enabled": True})
+    pmsg(j)
+
+def unprotect_branch(owner, repo, branch):
+    j = curler(PATCH, '/repos/%s/%s/branches/%s' % (owner,repo,branch),
+               user, {"enabled": False})
+    pmsg(j)
+
+methods = {
+    'list-mine':        [list_mine,        0, True],
+    'list-user':        [list_user,        1, False],
+    'list-org':         [list_org,         1, False],
+    'create-mine':      [create_mine,      1, True],
+    'create-org':       [create_org,       2, True],
+    'delete':           [delete_repo,      2, True],
+    'rename':           [rename_repo,      3, True],
+    'set-description':  [set_description,  3, True],
+    'protect-branch':   [protect_branch,   3, True],
+    'unprotect-branch': [unprotect_branch, 3, True]
+}
+
+def main(args):
+    global user
+
+    if len(args) >= 2 and args[0] == '-u':
+        user, args = args[1], args[2:]
+    if len(args) < 1:
+        usage()
+
+    command = args[0]
+    args = args[1:]
+
+    if command not in methods:
+        usage("unrecognized command: '%s'" % command)
+
+    method, ex_args, user_required = methods[command]
+
+    if len(args) != ex_args:
+        usage("wrong number of args for %s command" % command)
+
+    if user_required and not user:
+        usage("USER required for %s command" % command)
+
+    method(*args)
+
+if __name__ == '__main__':
+    main(sys.argv[1:])
+
