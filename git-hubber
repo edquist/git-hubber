@@ -43,7 +43,14 @@ POST   = 'POST'
 PATCH  = 'PATCH'
 DELETE = 'DELETE'
 
+_authstr = None
+
 def authsetup(user, passwd):
+    import base64
+    global _authstr
+    _authstr = base64.encodestring('%s:%s' % (user,passwd)).replace('\n', '')
+
+def authsetup_doesntwork(user, passwd):
     password_mgr = urllib2.HTTPPasswordMgrWithDefaultRealm()
     password_mgr.add_password(None, apiurl, user, passwd)
     handler = urllib2.HTTPBasicAuthHandler(password_mgr)
@@ -74,6 +81,8 @@ def get_nextlink(resp):
 
 def _snarfer(method, url, data=None):
     req = urllib2.Request(url, data)
+    if _authstr:
+        req.add_header("Authorization", "Basic %s" % _authstr)
     req.get_method = lambda : method
     resp = urllib2.urlopen(req)
     nextlink = get_nextlink(resp)
