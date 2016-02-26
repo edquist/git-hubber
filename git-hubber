@@ -1,8 +1,14 @@
 #!/usr/bin/python
 
 import os
+import re
 import sys
 import json
+#import urllib  # for: data = urllib.urlencode(values)
+import getopt
+import getpass
+import urllib2
+import operator
 import subprocess
 
 def usage(msg=None):
@@ -11,7 +17,7 @@ def usage(msg=None):
 
     s = os.path.basename(__file__)
     print """\
-usage: %s [-u USER[:PASS]] COMMAND [args...]
+usage: [PASS=...] %s [-u USER[:PASS]] [-d passfd] COMMAND [args...]
 
 COMMANDs:
 
@@ -31,24 +37,59 @@ COMMANDs:
     sys.exit()
 
 apiurl = 'https://api.github.com'
-user = []
-
-def spopen(cmd):
-    return subprocess.Popen(cmd, stdout=subprocess.PIPE).communicate()[0]
 
 GET    = 'GET'
 POST   = 'POST'
 PATCH  = 'PATCH'
 DELETE = 'DELETE'
 
-def curler(method, path, user=[], data=[]):
-    if user:
-        user = ['-u', user]
-    if data:
-        data = ['-d', json.dumps(data)]
-    cmd = ['curl', '-s'] + user + ['-X', method, apiurl + path] + data
+def authsetup(user, passwd):
+    password_mgr = urllib2.HTTPPasswordMgrWithDefaultRealm()
+    password_mgr.add_password(None, apiurl, user, passwd)
+    handler = urllib2.HTTPBasicAuthHandler(password_mgr)
+    opener = urllib2.build_opener(handler)
+    urllib2.install_opener(opener)
 
-    return json.loads(spopen(cmd))
+def getpw(user, passfd=None):
+    if ':' in user:
+        user, pw = user.split(':', 1)
+    elif passfd is not None:
+        pw = os.fdopen(passfd).readline().rstrip('\n')
+    elif 'PASS' in os.environ:
+        pw = os.environ['PASS']
+    else:
+        pw = getpass.getpass('passwd for user %s: ' % user)
+    return user, pw
+
+def linkparse(linktext):
+    mm = re.findall(r'<([^>]+)>; rel="([^"]+)"', linktext)
+    return dict((page, rel) for rel,page in mm)
+
+def get_nextlink(resp):
+    linktext = resp.headers.getheader('link')
+    if linktext:
+        links = linkparse(linktext)
+        if 'next' in links:
+            return links['next']
+
+def _snarfer(method, url, data=None):
+    req = urllib2.Request(url, data)
+    req.get_method = lambda : method
+    resp = urllib2.urlopen(req)
+    nextlink = get_nextlink(resp)
+    return resp.read(), nextlink
+
+def snarfergen(method, url, data=None):
+    while url:
+        text, url = _snarfer(method, url, data)
+        yield json.loads(text)
+    
+def snarfer(method, path, data=None):
+    if data:
+        data = json.dumps(data)
+    url = apiurl + path
+    return reduce(operator.add, snarfergen(method, url, data), [])
+
 
 """
 github API notes:
@@ -73,55 +114,55 @@ def pmsg(j):
         print j['message']
 
 def list_mine():
-    j = curler(GET, '/user/repos', user)
+    j = snarfer(GET, '/user/repos')
     pmsg(j)
     for x in j:
         #print x['full_name']
         print x['html_url']
 
 def list_user(luser):
-    j = curler(GET, '/users/%s/repos' % luser, user)
+    j = snarfer(GET, '/users/%s/repos' % luser)
     pmsg(j)
     for x in j:
         #print x['name']
         print x['html_url']
 
 def list_org(org):
-    j = curler(GET, '/orgs/%s/repos' % org, user)
+    j = snarfer(GET, '/orgs/%s/repos' % org)
     pmsg(j)
     for x in j:
         #print x['name']
         print x['html_url']
 
 def create_mine(repo):
-    j = curler(POST, '/user/repos', user, {"name": repo})
+    j = snarfer(POST, '/user/repos', {"name": repo})
     pmsg(j)
 
 def create_org(org, repo):
-    j = curler(POST, '/orgs/%s/repos' % org, user, {"name": repo})
+    j = snarfer(POST, '/orgs/%s/repos' % org, {"name": repo})
     pmsg(j)
 
 def delete_repo(owner, repo):
-    j = curler(DELETE, '/repos/%s/%s' % (owner,repo), user)
+    j = snarfer(DELETE, '/repos/%s/%s' % (owner,repo))
     pmsg(j)
 
 def rename_repo(owner, repo, newname):
-    j = curler(PATCH, '/repos/%s/%s' % (owner,repo), user, {"name": newname})
+    j = snarfer(PATCH, '/repos/%s/%s' % (owner,repo), {"name": newname})
     pmsg(j)
 
 def set_description(owner, repo, desc):
-    j = curler(PATCH, '/repos/%s/%s' % (owner,repo), user,
+    j = snarfer(PATCH, '/repos/%s/%s' % (owner,repo),
                {"name": repo, "description": desc})
     pmsg(j)
 
 def protect_branch(owner, repo, branch):
-    j = curler(PATCH, '/repos/%s/%s/branches/%s' % (owner,repo,branch),
-               user, {"enabled": True})
+    j = snarfer(PATCH, '/repos/%s/%s/branches/%s' % (owner,repo,branch),
+               {"enabled": True})
     pmsg(j)
 
 def unprotect_branch(owner, repo, branch):
-    j = curler(PATCH, '/repos/%s/%s/branches/%s' % (owner,repo,branch),
-               user, {"enabled": False})
+    j = snarfer(PATCH, '/repos/%s/%s/branches/%s' % (owner,repo,branch),
+               {"enabled": False})
     pmsg(j)
 
 methods = {
@@ -138,12 +179,16 @@ methods = {
 }
 
 def main(args):
-    global user
-
-    if len(args) >= 2 and args[0] == '-u':
-        user, args = args[1], args[2:]
+    ops, args = getopt.getopt(args, 'u:d:')
+    ops = dict(ops)
     if len(args) < 1:
         usage()
+
+    user   = None
+    passfd = None
+
+    if '-u' in ops: user   =     ops['-u']
+    if '-d' in ops: passfd = int(ops['-d'])
 
     command = args[0]
     args = args[1:]
@@ -156,7 +201,10 @@ def main(args):
     if len(args) != ex_args:
         usage("wrong number of args for %s command" % command)
 
-    if user_required and not user:
+    if user:
+        user, passwd = getpw(user, passfd)
+        authsetup(user, passwd)
+    elif user_required:
         usage("USER required for %s command" % command)
 
     method(*args)
