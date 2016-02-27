@@ -22,8 +22,9 @@ COMMANDs:
 
   (*)   list-mine
         list-user        USER
-        dump-user        USER
         list-org         ORG
+        dump-user        USER
+        dump-org         ORG
         list-branches    OWNER REPO
         list-tags        OWNER REPO
   (*)   create-mine      REPO
@@ -171,6 +172,14 @@ def list_org(org):
     for x in snarfer(GET, '/orgs/%s/repos' % org):
         print x['html_url']
 
+def dump_org(org):
+    for x in snarfer(GET, '/orgs/%s/repos' % org):
+        print x['html_url']
+        w = max(len(xx) for xx in x)
+        for xk,xv in sorted(x.items()):
+            print "  - %*s: %s" % (w,xk,xv)
+        print
+
 def create_mine(repo):
     snarfer(POST, '/user/repos', {"name": repo})
 
@@ -205,8 +214,9 @@ def unprotect_branch(owner, repo, branch):
 methods = {
     'list-mine':        [list_mine,        0, True],
     'list-user':        [list_user,        1, False],
-    'dump-user':        [dump_user,        1, False],
     'list-org':         [list_org,         1, False],
+    'dump-user':        [dump_user,        1, False],
+    'dump-org':         [dump_org,         1, False],
     'list-branches':    [list_branches,    2, False],
     'list-tags':        [list_tags,        2, False],
     'create-mine':      [create_mine,      1, True],
