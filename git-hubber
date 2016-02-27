@@ -4,7 +4,6 @@ import os
 import re
 import sys
 import json
-#import urllib  # for: data = urllib.urlencode(values)
 import getopt
 import getpass
 import urllib2
