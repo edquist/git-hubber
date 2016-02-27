@@ -24,6 +24,7 @@ COMMANDs:
         list-user        USER
         dump-user        USER
         list-org         ORG
+        list-branches    OWNER REPO
   (*)   create-mine      REPO
   (*)   create-org       ORG   REPO
   (*)   delete           OWNER REPO
@@ -123,6 +124,7 @@ github API notes:
 : list-mine      GET /user/repos
 : list-user      GET /users/:username/repos
 : list-org       GET /orgs/:org/repos
+: list-branches  GET /repos/:owner/:repo/branches
 : create-mine    POST /user/repos      {"name": "Repo-Name"}
 : create-org     POST /orgs/:org/repos {"name": "Repo-Name"}
 : delete         DELETE /repos/:owner/:repo
@@ -146,6 +148,10 @@ def list_mine():
 def list_user(luser):
     for x in snarfer(GET, '/users/%s/repos' % luser):
         print x['html_url']
+
+def list_branches(owner, repo):
+    for x in snarfer(GET, '/repos/%s/%s/branches' % (owner,repo)):
+        print x["commit"]["sha"], x["name"]
 
 def dump_user(luser):
     for x in snarfer(GET, '/users/%s/repos' % luser):
@@ -195,6 +201,7 @@ methods = {
     'list-user':        [list_user,        1, False],
     'dump-user':        [dump_user,        1, False],
     'list-org':         [list_org,         1, False],
+    'list-branches':    [list_branches,    2, False],
     'create-mine':      [create_mine,      1, True],
     'create-org':       [create_org,       2, True],
     'delete':           [delete_repo,      2, True],
