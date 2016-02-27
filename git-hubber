@@ -17,7 +17,7 @@ def usage(msg=None):
 
     s = os.path.basename(__file__)
     print """\
-usage: [PASS=...] %s [-u USER[:PASS]] [-d passfd] COMMAND [args...]
+usage: [PASS=...] %s [-u USER[:PASS]] [-d passfd] [-H] COMMAND [args...]
 
 COMMANDs:
 
@@ -33,6 +33,8 @@ COMMANDs:
   (*)   unprotect-branch OWNER REPO BRANCH
         
 (*) USER login required
+
+Specify -H to show http response headers
 """ % s
     sys.exit()
 
@@ -43,16 +45,15 @@ POST   = 'POST'
 PATCH  = 'PATCH'
 DELETE = 'DELETE'
 
-_authstr = None
+options = type('', (), {'authstr': None, 'show_headers': False})
 
 def add_auth_header(req):
-    if _authstr:
-        req.add_header("Authorization", "Basic %s" % _authstr)
+    if options.authstr:
+        req.add_header("Authorization", "Basic %s" % options.authstr)
 
 def authsetup(user, passwd):
-    import base64
-    global _authstr
-    _authstr = base64.encodestring('%s:%s' % (user,passwd)).replace('\n', '')
+    from base64 import encodestring
+    options.authstr = encodestring('%s:%s' % (user,passwd)).replace('\n', '')
 
 def getpw(user, passfd=None):
     if ':' in user:
@@ -81,6 +82,10 @@ def _snarfer(method, url, data=None):
     add_auth_header(req)
     req.get_method = lambda : method
     resp = urllib2.urlopen(req)
+    if options.show_headers:
+        print "Headers for <%s>" % url
+        print "---"
+        print resp.headers
     nextlink = get_nextlink(resp)
     return resp.read(), nextlink
 
@@ -193,7 +198,7 @@ methods = {
 }
 
 def main(args):
-    ops, args = getopt.getopt(args, 'u:d:')
+    ops, args = getopt.getopt(args, 'u:d:H')
     ops = dict(ops)
     if len(args) < 1:
         usage()
@@ -203,6 +208,7 @@ def main(args):
 
     if '-u' in ops: user   =     ops['-u']
     if '-d' in ops: passfd = int(ops['-d'])
+    if '-H' in ops: options.show_headers = True
 
     command = args[0]
     args = args[1:]
