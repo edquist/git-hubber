@@ -136,18 +136,15 @@ def pmsg(j):
         print j['message']
 
 def list_mine():
-    j = snarfer(GET, '/user/repos')
-    for x in j:
+    for x in snarfer(GET, '/user/repos'):
         print x['html_url']
 
 def list_user(luser):
-    j = snarfer(GET, '/users/%s/repos' % luser)
-    for x in j:
+    for x in snarfer(GET, '/users/%s/repos' % luser):
         print x['html_url']
 
 def list_org(org):
-    j = snarfer(GET, '/orgs/%s/repos' % org)
-    for x in j:
+    for x in snarfer(GET, '/orgs/%s/repos' % org):
         print x['html_url']
 
 def create_mine(repo):
