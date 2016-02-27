@@ -45,7 +45,7 @@ POST   = 'POST'
 PATCH  = 'PATCH'
 DELETE = 'DELETE'
 
-options = type('', (), {'authstr': None, 'show_headers': False})
+options = type('Options', (), {'authstr': None, 'show_headers': False})
 
 def add_auth_header(req):
     if options.authstr:
