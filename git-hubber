@@ -101,7 +101,7 @@ def snarfer(method, path, data=None):
     elif nresp == 1:
         return outs[0]
     elif type(outs[0]) is list:
-        return reduce(operator.add, snarfergen(method, url, data))
+        return reduce(operator.add, outs)
     else:
         return outs
 
