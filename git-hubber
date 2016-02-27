@@ -152,6 +152,10 @@ def list_user(username):
     for x in snarfer(GET, '/users/%s/repos' % username):
         print x['html_url']
 
+def list_org(org):
+    for x in snarfer(GET, '/orgs/%s/repos' % org):
+        print x['html_url']
+
 def list_branches(owner, repo):
     for x in snarfer(GET, '/repos/%s/%s/branches' % (owner,repo)):
         print x["commit"]["sha"], x["name"]
@@ -167,10 +171,6 @@ def dump_user(username):
         for xk,xv in sorted(x.items()):
             print "  - %*s: %s" % (w,xk,xv)
         print
-
-def list_org(org):
-    for x in snarfer(GET, '/orgs/%s/repos' % org):
-        print x['html_url']
 
 def dump_org(org):
     for x in snarfer(GET, '/orgs/%s/repos' % org):
