@@ -147,8 +147,8 @@ def list_mine():
     for x in snarfer(GET, '/user/repos'):
         print x['html_url']
 
-def list_user(luser):
-    for x in snarfer(GET, '/users/%s/repos' % luser):
+def list_user(username):
+    for x in snarfer(GET, '/users/%s/repos' % username):
         print x['html_url']
 
 def list_branches(owner, repo):
@@ -159,8 +159,8 @@ def list_tags(owner, repo):
     for x in snarfer(GET, '/repos/%s/%s/tags' % (owner,repo)):
         print x["commit"]["sha"], x["name"]
 
-def dump_user(luser):
-    for x in snarfer(GET, '/users/%s/repos' % luser):
+def dump_user(username):
+    for x in snarfer(GET, '/users/%s/repos' % username):
         print x['html_url']
         w = max(len(xx) for xx in x)
         for xk,xv in sorted(x.items()):
