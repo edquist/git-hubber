@@ -37,7 +37,7 @@ COMMANDs:
         
 (*) USER login required
 
-PASS is taken from the first of:
+PASS for USER is taken from the first of:
   1. -u USER:PASS
   2. -d passfd (read from fd)
   3. read from $PASS env var
