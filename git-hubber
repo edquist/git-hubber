@@ -91,14 +91,23 @@ def _snarfer(method, url, data=None):
 def snarfergen(method, url, data=None):
     while url:
         text, url = _snarfer(method, url, data)
-        yield json.loads(text)
+        if text:
+            yield json.loads(text)
     
 def snarfer(method, path, data=None):
     if data:
         data = json.dumps(data)
     url = apiurl + path
-    return reduce(operator.add, snarfergen(method, url, data), [])
-
+    outs = list(snarfergen(method, url, data))
+    nresp = len(outs)
+    if nresp == 0:
+        return None
+    elif nresp == 1:
+        return outs[0]
+    elif type(outs[0]) is list:
+        return reduce(operator.add, snarfergen(method, url, data))
+    else:
+        return outs
 
 """
 github API notes:
@@ -119,7 +128,7 @@ def print_names(j):
         print "%-*s  %s" % (m, x['name'], x['html_url'])
 
 def pmsg(j):
-    if 'message' in j:
+    if j and 'message' in j:
         print j['message']
 
 def list_mine():
