@@ -67,7 +67,7 @@ def getpw(user, passfd=None):
     return user, pw
 
 def linkparse(linktext):
-    mm = re.findall(r'<([^>]+)>; rel="([^"]+)"', linktext)
+    mm = re.findall(r'<([^>]+)>;\s*rel="([^"]+)"', linktext)
     return dict((page, rel) for rel,page in mm)
 
 def get_nextlink(resp):
