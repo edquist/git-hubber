@@ -93,7 +93,10 @@ def snarfergen(method, url, data=None):
     while url:
         text, url = _snarfer(method, url, data)
         if text:
-            yield json.loads(text)
+            j = json.loads(text)
+            if type(j) is dict:
+                pmsg(j)
+            yield j
     
 def snarfer(method, path, data=None):
     if data:
@@ -134,52 +137,42 @@ def pmsg(j):
 
 def list_mine():
     j = snarfer(GET, '/user/repos')
-    pmsg(j)
     for x in j:
         print x['html_url']
 
 def list_user(luser):
     j = snarfer(GET, '/users/%s/repos' % luser)
-    pmsg(j)
     for x in j:
         print x['html_url']
 
 def list_org(org):
     j = snarfer(GET, '/orgs/%s/repos' % org)
-    pmsg(j)
     for x in j:
         print x['html_url']
 
 def create_mine(repo):
-    j = snarfer(POST, '/user/repos', {"name": repo})
-    pmsg(j)
+    snarfer(POST, '/user/repos', {"name": repo})
 
 def create_org(org, repo):
-    j = snarfer(POST, '/orgs/%s/repos' % org, {"name": repo})
-    pmsg(j)
+    snarfer(POST, '/orgs/%s/repos' % org, {"name": repo})
 
 def delete_repo(owner, repo):
-    j = snarfer(DELETE, '/repos/%s/%s' % (owner,repo))
-    pmsg(j)
+    snarfer(DELETE, '/repos/%s/%s' % (owner,repo))
 
 def rename_repo(owner, repo, newname):
-    j = snarfer(PATCH, '/repos/%s/%s' % (owner,repo), {"name": newname})
-    pmsg(j)
+    snarfer(PATCH, '/repos/%s/%s' % (owner,repo), {"name": newname})
 
 def set_description(owner, repo, desc):
-    j = snarfer(PATCH, '/repos/%s/%s' % (owner,repo),
-               {"name": repo, "description": desc})
-    pmsg(j)
+    snarfer(PATCH, '/repos/%s/%s' % (owner,repo),
+           {"name": repo, "description": desc})
 
 def protect_branch(owner, repo, branch):
-    j = snarfer(PATCH, '/repos/%s/%s/branches/%s' % (owner,repo,branch),
-               {"enabled": True})
-    pmsg(j)
+    snarfer(PATCH, '/repos/%s/%s/branches/%s' % (owner,repo,branch),
+           {"enabled": True})
 
 def unprotect_branch(owner, repo, branch):
-    j = snarfer(PATCH, '/repos/%s/%s/branches/%s' % (owner,repo,branch),
-               {"enabled": False})
-    pmsg(j)
+    snarfer(PATCH, '/repos/%s/%s/branches/%s' % (owner,repo,branch),
+           {"enabled": False})
 
 methods = {
     'list-mine':        [list_mine,        0, True],
