@@ -287,5 +287,9 @@ def main(args):
     method(*args)
 
 if __name__ == '__main__':
-    main(sys.argv[1:])
+    try:
+        main(sys.argv[1:])
+    except urllib2.HTTPError as e:
+        print >>sys.stderr, e
+        sys.exit(1)
 
