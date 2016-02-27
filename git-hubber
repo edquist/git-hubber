@@ -48,6 +48,9 @@ DELETE = 'DELETE'
 
 options = type('Options', (), {'authstr': None, 'show_headers': False})
 
+def add_gh_preview_header(req):
+    req.add_header("Accept", "application/vnd.github.loki-preview+json")
+
 def add_auth_header(req):
     if options.authstr:
         req.add_header("Authorization", "Basic %s" % options.authstr)
@@ -81,6 +84,7 @@ def get_nextlink(resp):
 def _snarfer(method, url, data=None):
     req = urllib2.Request(url, data)
     add_auth_header(req)
+    add_gh_preview_header(req)
     req.get_method = lambda : method
     resp = urllib2.urlopen(req)
     if options.show_headers:
