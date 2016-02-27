@@ -37,7 +37,16 @@ COMMANDs:
         
 (*) USER login required
 
-Specify -H to show http response headers
+PASS is taken from the first of:
+  1. -u USER:PASS
+  2. -d passfd (read from fd)
+  3. read from $PASS env var
+  4. read from terminal
+
+Options:
+  -H   show http response headers
+  -F field[:field...] display fields for repos instead of just "html_url"
+     (valid fields are clone_url git_url html_url ssh_url full_name name)
 """ % s
     sys.exit()
 
@@ -48,7 +57,14 @@ POST   = 'POST'
 PATCH  = 'PATCH'
 DELETE = 'DELETE'
 
-options = type('Options', (), {'authstr': None, 'show_headers': False})
+VALID_FIELDS = set('clone_url git_url html_url ssh_url full_name name'.split())
+
+class Options:
+    authstr = None
+    show_headers = False
+    listfields = ['html_url']
+
+options = Options()
 
 def add_gh_preview_header(req):
     req.add_header("Accept", "application/vnd.github.loki-preview+json")
@@ -140,45 +156,46 @@ def print_names(j):
     for x in j:
         print "%-*s  %s" % (m, x['name'], x['html_url'])
 
+def print_fields(seq):
+    for x in seq:
+        print '\t'.join( x[f] for f in options.listfields )
+
+def print_refs(seq):
+    for x in seq:
+        print x["commit"]["sha"], x["name"]
+
+def dump_infos(seq):
+    for x in seq:
+        print x['html_url']
+        w = max(len(xx) for xx in x)
+        for xk,xv in sorted(x.items()):
+            print "  - %*s: %s" % (w,xk,xv)
+        print
+
 def pmsg(j):
     if j and 'message' in j:
         print j['message']
 
 def list_mine():
-    for x in snarfer(GET, '/user/repos'):
-        print x['html_url']
+    print_fields(snarfer(GET, '/user/repos'))
 
 def list_user(username):
-    for x in snarfer(GET, '/users/%s/repos' % username):
-        print x['html_url']
+    print_fields(snarfer(GET, '/users/%s/repos' % username))
 
 def list_org(org):
-    for x in snarfer(GET, '/orgs/%s/repos' % org):
-        print x['html_url']
+    print_fields(snarfer(GET, '/orgs/%s/repos' % org))
 
 def list_branches(owner, repo):
-    for x in snarfer(GET, '/repos/%s/%s/branches' % (owner,repo)):
-        print x["commit"]["sha"], x["name"]
+    print_refs(snarfer(GET, '/repos/%s/%s/branches' % (owner,repo)))
 
 def list_tags(owner, repo):
-    for x in snarfer(GET, '/repos/%s/%s/tags' % (owner,repo)):
-        print x["commit"]["sha"], x["name"]
+    print_refs(snarfer(GET, '/repos/%s/%s/tags' % (owner,repo)))
 
 def dump_user(username):
-    for x in snarfer(GET, '/users/%s/repos' % username):
-        print x['html_url']
-        w = max(len(xx) for xx in x)
-        for xk,xv in sorted(x.items()):
-            print "  - %*s: %s" % (w,xk,xv)
-        print
+    dump_infos(snarfer(GET, '/users/%s/repos' % username))
 
 def dump_org(org):
-    for x in snarfer(GET, '/orgs/%s/repos' % org):
-        print x['html_url']
-        w = max(len(xx) for xx in x)
-        for xk,xv in sorted(x.items()):
-            print "  - %*s: %s" % (w,xk,xv)
-        print
+    dump_infos(snarfer(GET, '/orgs/%s/repos' % org))
 
 def create_mine(repo):
     snarfer(POST, '/user/repos', {"name": repo})
@@ -228,8 +245,16 @@ methods = {
     'unprotect-branch': [unprotect_branch, 3, True]
 }
 
+def checkfields(f):
+    if not f:
+        usage()
+    fields = f.split(':')
+    if not all( x in VALID_FIELDS for x in fields ):
+        usage()
+    return fields
+
 def main(args):
-    ops, args = getopt.getopt(args, 'u:d:H')
+    ops, args = getopt.getopt(args, 'u:d:HF:')
     ops = dict(ops)
     if len(args) < 1:
         usage()
@@ -240,6 +265,7 @@ def main(args):
     if '-u' in ops: user   =     ops['-u']
     if '-d' in ops: passfd = int(ops['-d'])
     if '-H' in ops: options.show_headers = True
+    if '-F' in ops: options.listfields = checkfields(ops['-F'])
 
     command = args[0]
     args = args[1:]
