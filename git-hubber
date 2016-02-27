@@ -27,6 +27,7 @@ COMMANDs:
         dump-org         ORG
         list-branches    OWNER REPO
         list-tags        OWNER REPO
+        list-refs        OWNER REPO
   (*)   create-mine      REPO
   (*)   create-org       ORG   REPO
   (*)   delete           OWNER REPO
@@ -144,6 +145,7 @@ github API notes:
 : list-org       GET /orgs/:org/repos
 : list-branches  GET /repos/:owner/:repo/branches
 : list-tags      GET /repos/:owner/:repo/tags
+: list-refs      GET /repos/:owner/:repo/git/refs  # aka git_refs_url
 : create-mine    POST /user/repos      {"name": "Repo-Name"}
 : create-org     POST /orgs/:org/repos {"name": "Repo-Name"}
 : delete         DELETE /repos/:owner/:repo
@@ -163,6 +165,10 @@ def print_fields(seq):
 def print_refs(seq):
     for x in seq:
         print x["commit"]["sha"], x["name"]
+
+def print_git_refs(seq):
+    for x in seq:
+        print x["object"]["sha"], x["ref"]
 
 def dump_infos(seq):
     for x in seq:
@@ -190,6 +196,9 @@ def list_branches(owner, repo):
 
 def list_tags(owner, repo):
     print_refs(snarfer(GET, '/repos/%s/%s/tags' % (owner,repo)))
+
+def list_git_refs(owner, repo):
+    print_git_refs(snarfer(GET, '/repos/%s/%s/git/refs' % (owner,repo)))
 
 def dump_user(username):
     dump_infos(snarfer(GET, '/users/%s/repos' % username))
@@ -236,6 +245,7 @@ methods = {
     'dump-org':         [dump_org,         1, False],
     'list-branches':    [list_branches,    2, False],
     'list-tags':        [list_tags,        2, False],
+    'list-refs':        [list_git_refs,    2, False],
     'create-mine':      [create_mine,      1, True],
     'create-org':       [create_org,       2, True],
     'delete':           [delete_repo,      2, True],
