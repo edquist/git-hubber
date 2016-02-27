@@ -151,9 +151,9 @@ github API notes:
 : protect-branch PATCH /repos/:owner/:repo/branches/:branch {"enabled": "true"}
 """
 
-def print_names(j):
-    m = max( len(x['name']) for x in j )
-    for x in j:
+def print_names(seq):
+    m = max( len(x['name']) for x in seq )
+    for x in seq:
         print "%-*s  %s" % (m, x['name'], x['html_url'])
 
 def print_fields(seq):
